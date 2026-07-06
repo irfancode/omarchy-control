@@ -31,12 +31,35 @@ function navigate(page) {
 
 // ─── Fetch ─────────────────────────────────────────────────────────────────
 
+let lastError = '';
+function showError(msg) {
+  const content = document.getElementById('content');
+  if (content) content.innerHTML = `<div class="page active"><div class="card" style="border-color:var(--danger);text-align:center;padding:40px">
+    <div style="font-size:48px;margin-bottom:16px">⚠</div>
+    <h2 style="margin-bottom:8px">Connection Error</h2>
+    <p style="color:var(--text-2);margin-bottom:16px">${msg}</p>
+    <button class="btn btn-accent" onclick="location.reload()">Retry</button>
+  </div></div>`;
+}
+
 async function api(path, opts = {}) {
-  const r = await fetch(`${API}/api${path}`, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
-    ...opts,
-  });
-  return r.json();
+  try {
+    const r = await fetch(`${API}/api${path}`, {
+      headers: { 'Content-Type': 'application/json', ...opts.headers },
+      ...opts,
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      throw new Error(`${r.status} ${r.statusText}${text ? ': ' + text.slice(0,100) : ''}`);
+    }
+    return r.json();
+  } catch (e) {
+    if (!lastError || Date.now() - lastError > 5000) {
+      lastError = Date.now();
+      showError(`Could not connect to Omarchy Control API.<br><small>${e.message}</small><br><br>Make sure the server is running:<br><code style="background:#1c1c2e;padding:4px 8px;border-radius:4px">omarchy-control</code>`);
+    }
+    throw e;
+  }
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────

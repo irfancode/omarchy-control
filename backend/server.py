@@ -232,7 +232,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/":
                 path = "/index.html"
             filepath = FRONTEND / path.lstrip("/")
-            if filepath.is_file() and filepath.parent == FRONTEND or FRONTEND in filepath.parents:
+            if filepath.is_file() and (filepath.parent == FRONTEND or FRONTEND in filepath.parents):
                 data = filepath.read_bytes()
                 ctype = "text/html" if path.endswith(".html") else \
                         "text/css" if path.endswith(".css") else \

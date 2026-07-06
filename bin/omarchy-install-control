@@ -56,17 +56,27 @@ PORT=${OMARCHY_CONTROL_PORT:-8765}
 INSTALL_DIR="$HOME/.local/share/omarchy/control"
 
 # Kill existing instance
-pkill -f "python3.*$INSTALL_DIR/backend/server.py" 2>/dev/null || true
+kill $(ps aux | grep "[s]erver.py" | grep "$INSTALL_DIR" | awk '{print $2}') 2>/dev/null || true
 sleep 0.5
 
-# Start server
-python3 "$INSTALL_DIR/backend/server.py" &
-sleep 1
+# Start server in background (survives terminal close)
+nohup python3 "$INSTALL_DIR/backend/server.py" > /dev/null 2>&1 &
+disown
+
+# Wait for server to be ready
+for i in $(seq 1 10); do
+  if curl -s "http://localhost:$PORT/api/system/info" > /dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
 
 # Open in browser
 xdg-open "http://localhost:$PORT" 2>/dev/null || true
 
 echo "🚀 Omarchy Control running at http://localhost:$PORT"
+echo ""
+echo "To stop:  kill \$(ps aux | grep '[s]erver.py' | awk '{print \$2}')"
 echo ""
 echo "Available pages:"
 echo "  Dashboard  — System stats, CPU, memory, disk"
@@ -77,9 +87,6 @@ echo "  Toggles    — Nightlight, idle, notifications"
 echo "  System     — Lock, reboot, shutdown, updates"
 echo "  Packages   — Install Arch packages"
 echo "  Fonts      — Browse and set fonts"
-echo ""
-echo "Press Ctrl+C to stop the server."
-wait
 LAUNCHER
 
 chmod +x "$HOME/.local/bin/omarchy-control"
