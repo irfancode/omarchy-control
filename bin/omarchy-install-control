@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# omarchy:summary=Install Omarchy Control — web-based desktop management panel
+# omarchy:group=install
+# omarchy:name=control
+# omarchy:args=
+# omarchy:examples=omarchy install control
+
+set -e
+
+SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+REPO_DIR="$(dirname "$SELF_DIR")"
+
+echo "Installing Omarchy Control..."
+echo ""
+
+# ── Dependencies ──────────────────────────────────────────────────────────
+
+echo "[1/4] Checking dependencies..."
+python3 -c "import json, http.server" 2>/dev/null || true  # stdlib only, no deps needed
+
+# ── Copy files ────────────────────────────────────────────────────────────
+
+echo "[2/4] Installing files..."
+INSTALL_DIR="$HOME/.local/share/omarchy/control"
+mkdir -p "$INSTALL_DIR/backend" "$INSTALL_DIR/frontend"
+
+cp -r "$REPO_DIR/backend/"* "$INSTALL_DIR/backend/"
+cp -r "$REPO_DIR/frontend/"* "$INSTALL_DIR/frontend/"
+chmod +x "$INSTALL_DIR/backend/server.py" 2>/dev/null || true
+
+# ── Desktop entry ─────────────────────────────────────────────────────────
+
+echo "[3/4] Creating desktop entry..."
+mkdir -p "$HOME/.local/share/applications"
+
+cat >"$HOME/.local/share/applications/omarchy-control.desktop" <<EOF
+[Desktop Entry]
+Name=Omarchy Control
+Comment=Web-based desktop management for Omarchy
+Exec=omarchy-control
+Icon=preferences-system
+Terminal=false
+Type=Application
+Categories=System;Settings;
+EOF
+
+# ── CLI launcher ──────────────────────────────────────────────────────────
+
+echo "[4/4] Creating CLI launcher..."
+mkdir -p "$HOME/.local/bin"
+
+cat >"$HOME/.local/bin/omarchy-control" <<'LAUNCHER'
+#!/bin/bash
+PORT=${OMARCHY_CONTROL_PORT:-8765}
+INSTALL_DIR="$HOME/.local/share/omarchy/control"
+
+# Kill existing instance
+pkill -f "python3.*$INSTALL_DIR/backend/server.py" 2>/dev/null || true
+sleep 0.5
+
+# Start server
+python3 "$INSTALL_DIR/backend/server.py" &
+sleep 1
+
+# Open in browser
+xdg-open "http://localhost:$PORT" 2>/dev/null || true
+
+echo "🚀 Omarchy Control running at http://localhost:$PORT"
+echo ""
+echo "Available pages:"
+echo "  Dashboard  — System stats, CPU, memory, disk"
+echo "  Hyprland   — Config editor, keybindings"
+echo "  Themes     — Browse and apply themes"
+echo "  Services   — Restart waybar, walker, etc."
+echo "  Toggles    — Nightlight, idle, notifications"
+echo "  System     — Lock, reboot, shutdown, updates"
+echo "  Packages   — Install Arch packages"
+echo "  Fonts      — Browse and set fonts"
+echo ""
+echo "Press Ctrl+C to stop the server."
+wait
+LAUNCHER
+
+chmod +x "$HOME/.local/bin/omarchy-control"
+
+# Ensure ~/.local/bin is in PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc" 2>/dev/null || true
+fi
+
+echo ""
+echo "✓ Omarchy Control installed!"
+echo ""
+echo "Start it:"
+echo "  omarchy-control"
+echo ""
+echo "Or run in background:"
+echo "  omarchy-control &"
+echo ""
+echo "Then open http://localhost:${OMARCHY_CONTROL_PORT:-8765}"
