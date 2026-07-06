@@ -8,9 +8,6 @@
 
 set -e
 
-SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-REPO_DIR="$(dirname "$SELF_DIR")"
-
 echo "Installing Omarchy Control..."
 echo ""
 
@@ -25,8 +22,20 @@ echo "[2/4] Installing files..."
 INSTALL_DIR="$HOME/.local/share/omarchy/control"
 mkdir -p "$INSTALL_DIR/backend" "$INSTALL_DIR/frontend"
 
-cp -r "$REPO_DIR/backend/"* "$INSTALL_DIR/backend/"
-cp -r "$REPO_DIR/frontend/"* "$INSTALL_DIR/frontend/"
+# Source files are in the same directory as this script's parent
+SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+REPO_DIR="$(dirname "$SELF_DIR")"
+
+if [[ -f $REPO_DIR/backend/server.py ]]; then
+  cp "$REPO_DIR/backend/server.py" "$INSTALL_DIR/backend/"
+  cp "$REPO_DIR/frontend/index.html" "$REPO_DIR/frontend/style.css" "$REPO_DIR/frontend/app.js" "$INSTALL_DIR/frontend/"
+elif [[ -f $INSTALL_DIR/backend/server.py ]]; then
+  echo "  (already installed, refreshing files)"
+else
+  echo "ERROR: Cannot find source files. Clone from:"
+  echo "  git clone https://github.com/irfancode/omarchy-control.git"
+  exit 1
+fi
 chmod +x "$INSTALL_DIR/backend/server.py" 2>/dev/null || true
 
 # ── Desktop entry ─────────────────────────────────────────────────────────
