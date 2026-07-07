@@ -371,7 +371,10 @@ def handle_api(path, params, body):
                 "reboot": ["omarchy", "system", "reboot"], "shutdown": ["omarchy", "system", "shutdown"],
                 "update": ["omarchy", "update"]}
         if action in cmds:
-            subprocess.Popen(cmds[action])
+            try:
+                subprocess.Popen(cmds[action])
+            except FileNotFoundError:
+                pass
             return json_resp({"ok": True, "action": action})
         return api_error("unknown action")
 
