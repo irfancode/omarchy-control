@@ -1,5 +1,5 @@
 """Tests for log management functionality."""
-import json, os, sys
+import json, os, sys, threading
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -56,8 +56,6 @@ def test_handle_sse_logs_unknown_path():
     close_event.set()  # immediately stop
     # Should not throw
     server.handle_sse("/api/unknown/stream", {}, MagicMock(), close_event)
-
-import threading
 
 def test_sse_log_stream_cleanup():
     """Test that log stream cleans up subprocess on close."""
