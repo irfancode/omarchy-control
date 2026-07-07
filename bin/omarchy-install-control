@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Install Omarchy Control — web-based desktop management panel
+# omarchy:summary=Install Omarchy Control — web-based desktop management panel with observability
 # omarchy:group=install
 # omarchy:name=control
 # omarchy:args=
@@ -14,21 +14,23 @@ echo ""
 # ── Dependencies ──────────────────────────────────────────────────────────
 
 echo "[1/4] Checking dependencies..."
-python3 -c "import json, http.server" 2>/dev/null || true  # stdlib only, no deps needed
+python3 -c "import json, http.server" 2>/dev/null || true
 
 # ── Copy files ────────────────────────────────────────────────────────────
 
 echo "[2/4] Installing files..."
 INSTALL_DIR="$HOME/.local/share/omarchy/control"
-mkdir -p "$INSTALL_DIR/backend" "$INSTALL_DIR/frontend"
+mkdir -p "$INSTALL_DIR/backend" "$INSTALL_DIR/frontend" "$INSTALL_DIR/tests"
 
-# Source files are in the same directory as this script's parent
 SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 REPO_DIR="$(dirname "$SELF_DIR")"
 
 if [[ -f $REPO_DIR/backend/server.py ]]; then
   cp "$REPO_DIR/backend/server.py" "$INSTALL_DIR/backend/"
   cp "$REPO_DIR/frontend/index.html" "$REPO_DIR/frontend/style.css" "$REPO_DIR/frontend/app.js" "$INSTALL_DIR/frontend/"
+  if [[ -d $REPO_DIR/tests ]]; then
+    cp -r "$REPO_DIR/tests/"* "$INSTALL_DIR/tests/"
+  fi
 elif [[ -f $INSTALL_DIR/backend/server.py ]]; then
   echo "  (already installed, refreshing files)"
 else
@@ -46,7 +48,7 @@ mkdir -p "$HOME/.local/share/applications"
 cat >"$HOME/.local/share/applications/omarchy-control.desktop" <<EOF
 [Desktop Entry]
 Name=Omarchy Control
-Comment=Web-based desktop management for Omarchy
+Comment=Web-based desktop management with observability for Omarchy
 Exec=omarchy-control
 Icon=preferences-system
 Terminal=false
@@ -64,15 +66,12 @@ cat >"$HOME/.local/bin/omarchy-control" <<'LAUNCHER'
 PORT=${OMARCHY_CONTROL_PORT:-8765}
 INSTALL_DIR="$HOME/.local/share/omarchy/control"
 
-# Kill existing instance
 kill $(ps aux | grep "[s]erver.py" | grep "$INSTALL_DIR" | awk '{print $2}') 2>/dev/null || true
 sleep 0.5
 
-# Start server in background (survives terminal close)
 nohup python3 "$INSTALL_DIR/backend/server.py" > /dev/null 2>&1 &
 disown
 
-# Wait for server to be ready
 for i in $(seq 1 10); do
   if curl -s "http://localhost:$PORT/api/system/info" > /dev/null 2>&1; then
     break
@@ -80,7 +79,6 @@ for i in $(seq 1 10); do
   sleep 0.5
 done
 
-# Open in browser
 xdg-open "http://localhost:$PORT" 2>/dev/null || true
 
 echo "🚀 Omarchy Control running at http://localhost:$PORT"
@@ -88,7 +86,11 @@ echo ""
 echo "To stop:  kill \$(ps aux | grep '[s]erver.py' | awk '{print \$2}')"
 echo ""
 echo "Available pages:"
-echo "  Dashboard  — System stats, CPU, memory, disk"
+echo "  Dashboard  — System health, gauges, real-time alerts"
+echo "  Monitor    — Live sparkline charts (CPU, memory, disk)"
+echo "  Processes  — Top processes, sort, kill"
+echo "  Logs       — Journald log viewer with search & follow"
+echo "  Network    — Network throughput, disk I/O, temperatures"
 echo "  Hyprland   — Config editor, keybindings"
 echo "  Themes     — Browse and apply themes"
 echo "  Services   — Restart waybar, walker, etc."
@@ -96,11 +98,21 @@ echo "  Toggles    — Nightlight, idle, notifications"
 echo "  System     — Lock, reboot, shutdown, updates"
 echo "  Packages   — Install Arch packages"
 echo "  Fonts      — Browse and set fonts"
+echo ""
+echo "New observability features:"
+echo "  • Real-time SSE streaming (metrics every 5s)"
+echo "  • System health score with alerts"
+echo "  • Canvas sparkline charts (no external libs)"
+echo "  • SVG circular resource gauges"
+echo "  • Journald log viewer with live follow"
+echo "  • Process explorer with kill"
+echo "  • Network & disk I/O monitoring"
+echo "  • Temperature sensors"
+echo "  • Dark/light theme toggle"
 LAUNCHER
 
 chmod +x "$HOME/.local/bin/omarchy-control"
 
-# Ensure ~/.local/bin is in PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc" 2>/dev/null || true
@@ -112,7 +124,7 @@ echo ""
 echo "Start it:"
 echo "  omarchy-control"
 echo ""
-echo "Or run in background:"
-echo "  omarchy-control &"
-echo ""
 echo "Then open http://localhost:${OMARCHY_CONTROL_PORT:-8765}"
+echo ""
+echo "Run tests:"
+echo "  cd ~/.local/share/omarchy/control && python3 -m pytest tests/ -v"
