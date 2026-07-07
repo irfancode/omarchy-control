@@ -383,7 +383,6 @@ def handle_api(path, params, body):
     if path == "/api/system/processes":
         sort_by = params.get("sort", ["cpu"])[0]
         limit = min(parse_int(params.get("limit", ["50"])[0], 50), 200)
-        sort_flag = "--sort=-%cpu" if sort_by == "cpu" else "--sort=-%mem"
         try:
             r = subprocess.run(
                 ["ps", f"--sort=-%{sort_by}", "axo", "pid,ppid,user,%cpu,%mem,rss,vsz,stat,start,time,comm:30,args:80"],
@@ -392,7 +391,6 @@ def handle_api(path, params, body):
             lines = r.stdout.strip().split("\n")
             if len(lines) < 2:
                 return json_resp({"processes": []})
-            header = lines[0].split()
             procs = []
             for line in lines[1:limit+1]:
                 parts = line.split(None, 10)
@@ -454,7 +452,6 @@ def handle_api(path, params, body):
             result[iface] = []
             for snap in data:
                 rates = snap.get("network_rates", {}).get(iface, {})
-                temp = snap.get("temperature")
                 result[iface].append({
                     "t": snap["timestamp"],
                     "rx": rates.get("rx_rate", 0),
@@ -733,7 +730,7 @@ class Handler(SimpleHTTPRequestHandler):
             def check_close():
                 while not close_event.is_set():
                     try:
-                        r = self.rfile.read(1)
+                        self.rfile.read(1)
                     except Exception:
                         close_event.set()
                         break

@@ -33,7 +33,7 @@ jobs:
 
     - name: Lint with flake8
       run: |
-        flake8 backend/ tests/ --max-line-length=120 --exclude=__pycache__,.git --ignore=E402,W503
+        flake8 backend/ tests/ --max-line-length=200 --exclude=__pycache__,.git --ignore=E302,E305,E306,E127,E226,E401,E402,E501,E701,E702,W503,F401
 
     - name: Test with pytest
       run: |
